@@ -1,0 +1,90 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.special import gamma
+from scipy.integrate import quad
+
+# Параметры
+alpha = 0.7  # Дробный порядок 
+t = np.linspace(0.1, 5, 100)  # Ось времени
+
+# Исходные функции ========================================================
+def f_base(tau):
+    """Базовая плавная функция"""
+    return 0.5 * tau**2
+
+def f_jump(tau):
+    """Функция с резким скачком в прошлом"""
+    # Плавный рост + гауссов пик при t=1
+    return f_base(tau) + 3 * np.exp(-20*(tau-1)**2)
+
+# Производные =============================================================
+def derivative_classic(tau):
+    """Классическая производная (1-го порядка)"""
+    return tau - 120*(tau-1)*np.exp(-20*(tau-1)**2)
+
+def caputo_derivative(f, t, alpha=0.5, a=0.0):
+    """Дробная производная Капуто с эффектом памяти"""
+    # Ядро памяти: (t-τ)^(-α) - чем ближе событие, тем сильнее его влияние
+    integrand = lambda tau: (t - tau)**(-alpha) * (f(tau) - f(a))
+    return (1 / gamma(1 - alpha)) * quad(integrand, a, t, limit=200)[0]
+
+# Вычисляем значения ======================================================
+# Исходные функции
+f_base_vals = [f_base(ti) for ti in t]
+f_jump_vals = [f_jump(ti) for ti in t]
+
+# Классические производные
+deriv_classic_base = [ti for ti in t]
+deriv_classic_jump = [derivative_classic(ti) for ti in t]  # Для f_jump
+
+# Дробные производные (вычисление медленное - лучше использовать кэширование)
+caputo_base = [caputo_derivative(f_base, ti, alpha) for ti in t]
+caputo_jump = [caputo_derivative(f_jump, ti, alpha) for ti in t]
+
+# Визуализация ============================================================
+plt.figure(figsize=(14, 10), facecolor='#f8f9fa')
+
+# 1. График функций -------------------------------------------------------
+plt.subplot(3, 1, 1)
+plt.plot(t, f_base_vals, 'b-', lw=3, label='Плавная функция: $f(t) = \\frac{1}{2}t^2$')
+plt.plot(t, f_jump_vals, 'r-', lw=3, label='Функция со скачком: $f(t) = \\frac{1}{2}t^2 + 3e^{-20(t-1)^2}$')
+plt.title('Исходные функции', fontsize=14)
+plt.legend(loc='upper left', fontsize=12)
+plt.grid(True, alpha=0.3)
+plt.fill_betweenx([0, 8], 0.9, 1.1, color='red', alpha=0.2, label='Область скачка')
+
+# 2. График классических производных --------------------------------------
+plt.subplot(3, 1, 2)
+plt.plot(t, deriv_classic_base, 'b--', lw=3, label='Производная плавной функции')
+plt.plot(t, deriv_classic_jump, 'r-', lw=2, label='Производная функции со скачком')
+plt.title(f'Классические производные (1-го порядка)', fontsize=14)
+plt.legend(loc='upper left', fontsize=12)
+plt.grid(True, alpha=0.3)
+plt.ylim(-1, 5)
+
+# Важная аннотация: показать где производные совпадают
+plt.annotate('После скачка производные\nстановятся идентичны!\nКлассическая производная "забыла"\nскачок в прошлом', 
+             xy=(2.5, 2.5), xytext=(3.0, 0.5),
+             arrowprops=dict(facecolor='black', shrink=0.05),
+             fontsize=12, bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray"))
+
+# 3. График дробных производных -------------------------------------------
+plt.subplot(3, 1, 3)
+plt.plot(t, caputo_base, 'b--', lw=3, label=f'Дробная производная (α={alpha}) плавной функции')
+plt.plot(t, caputo_jump, 'r-', lw=3, label=f'Дробная производная (α={alpha}) функции со скачком')
+plt.title(f'Дробные производные Капуто (порядок α={alpha})', fontsize=14)
+plt.xlabel('Время (t)', fontsize=12)
+plt.legend(loc='upper left', fontsize=12)
+plt.grid(True, alpha=0.3)
+
+# Аннотация для эффекта памяти
+plt.annotate('Дробная производная "помнит"\nскачок даже после его завершения!\nЭффект памяти сохраняется', 
+             xy=(2.5, caputo_jump[50]), xytext=(3.0, caputo_jump[50]-0.5),
+             arrowprops=dict(facecolor='red', shrink=0.05),
+             fontsize=12, color='red', 
+             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="red"))
+
+plt.tight_layout(pad=3.0)
+plt.suptitle('Сравнение классических и дробных производных: Эффект памяти', 
+             fontsize=16, y=1.02)
+plt.show()
