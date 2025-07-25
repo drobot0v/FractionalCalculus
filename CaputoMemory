@@ -4,7 +4,7 @@ from scipy.special import gamma
 from scipy.integrate import quad
 
 # Параметры
-alpha = 0.7  # Дробный порядок 
+alpha = 0.7  # Дробный порядок
 t = np.linspace(0.1, 5, 100)  # Ось времени
 
 # Исходные функции ========================================================
@@ -22,10 +22,8 @@ def derivative_classic(tau):
     """Классическая производная (1-го порядка)"""
     return tau - 120*(tau-1)*np.exp(-20*(tau-1)**2)
 
-def caputo_derivative(f, t, alpha=0.5, a=0.0):
-    """Дробная производная Капуто с эффектом памяти"""
-    # Ядро памяти: (t-τ)^(-α) - чем ближе событие, тем сильнее его влияние
-    integrand = lambda tau: (t - tau)**(-alpha) * (f(tau) - f(a))
+def caputo_derivative(f, f_deriv, t, alpha=0.5, a=0.0):
+    integrand = lambda tau: (t-tau)**(-alpha) * f_deriv(tau)
     return (1 / gamma(1 - alpha)) * quad(integrand, a, t, limit=200)[0]
 
 # Вычисляем значения ======================================================
@@ -38,8 +36,8 @@ deriv_classic_base = [ti for ti in t]
 deriv_classic_jump = [derivative_classic(ti) for ti in t]  # Для f_jump
 
 # Дробные производные (вычисление медленное - лучше использовать кэширование)
-caputo_base = [caputo_derivative(f_base, ti, alpha) for ti in t]
-caputo_jump = [caputo_derivative(f_jump, ti, alpha) for ti in t]
+caputo_base = [caputo_derivative(f_base, lambda t: t, ti, alpha) for ti in t]
+caputo_jump = [caputo_derivative(f_jump, derivative_classic, ti, alpha) for ti in t]
 
 # Визуализация ============================================================
 plt.figure(figsize=(14, 10), facecolor='#f8f9fa')
@@ -63,7 +61,7 @@ plt.grid(True, alpha=0.3)
 plt.ylim(-1, 5)
 
 # Важная аннотация: показать где производные совпадают
-plt.annotate('После скачка производные\nстановятся идентичны!\nКлассическая производная "забыла"\nскачок в прошлом', 
+plt.annotate('После скачка производные\nстановятся идентичны!\nКлассическая производная "забыла"\nскачок в прошлом',
              xy=(2.5, 2.5), xytext=(3.0, 0.5),
              arrowprops=dict(facecolor='black', shrink=0.05),
              fontsize=12, bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray"))
@@ -78,13 +76,13 @@ plt.legend(loc='upper left', fontsize=12)
 plt.grid(True, alpha=0.3)
 
 # Аннотация для эффекта памяти
-plt.annotate('Дробная производная "помнит"\nскачок даже после его завершения!\nЭффект памяти сохраняется', 
+plt.annotate('Дробная производная "помнит"\nскачок даже после его завершения!\nЭффект памяти сохраняется',
              xy=(2.5, caputo_jump[50]), xytext=(3.0, caputo_jump[50]-0.5),
              arrowprops=dict(facecolor='red', shrink=0.05),
-             fontsize=12, color='red', 
+             fontsize=12, color='red',
              bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="red"))
 
 plt.tight_layout(pad=3.0)
-plt.suptitle('Сравнение классических и дробных производных: Эффект памяти', 
+plt.suptitle('Сравнение классических и дробных производных: Эффект памяти',
              fontsize=16, y=1.02)
 plt.show()
