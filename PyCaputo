@@ -1,0 +1,52 @@
+# pip install pycaputo
+
+import numpy as np
+
+from pycaputo.typing import Array
+from pycaputo.differentiation.caputo import L1, diff
+from pycaputo.grid import make_uniform_points
+
+# Настройка параметров ====================
+
+alpha = 0.99
+method = L1(alpha=alpha)
+
+p = make_uniform_points(256, a=0.0, b=5.0)
+
+# Исходные функции ===================================
+
+def f_base(tau: Array) -> Array:
+  return 0.5 * tau ** 2
+
+def f_jump(tau: Array) -> Array:
+   # Плавный рост + гауссов пик при t=1
+   return f_base(tau) + 3 * np.exp(-20 * (tau-1) ** 2)
+
+# Численное дифференцирование по Капуто
+
+df_base = diff(method, f_base, p)
+df_jump = diff(method, f_jump, p)
+
+# Построение графиков =======================================
+
+from pycaputo import _get_default_dark
+from pycaputo.utils import figure, set_recommended_matplotlib
+
+for dark, suffix in _get_default_dark():
+    set_recommended_matplotlib(dark=dark)
+
+    with figure(f"tutorial-caputo-l1{suffix}") as fig:
+        ax = fig.gca()
+
+        ax.plot(p.x, df_base, lw=5, label="f(t), гладкая")
+        ax.plot(p.x, df_jump, lw=5, label="f(t), со скачком")
+
+        ax.set_xlabel("$t$")
+        ax.set_ylabel(r"$D^\alpha_C[f](t)$")
+        ax.legend()
+
+# Значения в заданной точке
+
+i = p.x.tolist().index(3.)
+print(df_base[i])
+print(df_jump[i])
